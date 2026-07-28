@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WhiskerCalc 🐱</title>
+<style>
+  :root{
+    --blue:#CFEFFF;
+    --purple:#D8C7FF;
+    --pink:#FFD1E8;
+    --ink:#3d3552;
+    --ink-soft:#6b5f8a;
+    --key:#ffffff;
+    --key-op: #f3e9ff;
+    --accent:#b48cff;
+    --accent-dark:#8f63e8;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100dvh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: radial-gradient(circle at 20% 15%, var(--blue), transparent 55%),
+                radial-gradient(circle at 85% 20%, var(--pink), transparent 50%),
+                linear-gradient(160deg, var(--blue), var(--purple) 55%, var(--pink));
+    font-family: 'Trebuchet MS', 'Comic Sans MS', 'Segoe UI Rounded', Verdana, sans-serif;
+    color: var(--ink);
+    overflow:hidden;
+    padding: 18px;
+  }
+  .app{ width: min(400px, 94vw); display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .title{ font-size: clamp(22px, 6vw, 30px); font-weight:800; letter-spacing:0.5px; text-shadow: 0 2px 0 rgba(255,255,255,0.6); display:flex; align-items:center; gap:8px; }
+  .title .paw{ transform: rotate(-12deg); display:inline-block; }
+  .subtitle{ font-size: 12.5px; color: var(--ink-soft); text-align:center; margin-top:-6px; }
+
+  .card{
+    position:relative;
+    width:100%;
+    background: linear-gradient(160deg, #ffffff, #fbf5ff);
+    border-radius: 28px;
+    padding: 16px;
+    box-shadow: 0 20px 40px -12px rgba(120, 90, 180, 0.45), inset 0 0 0 1px rgba(255,255,255,0.6);
+    overflow:hidden;
+  }
+
+  .topbar{ display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:700; color: var(--ink-soft); padding: 2px 6px 8px 6px; position:relative; z-index: 3; }
+  .pill{ background: var(--key-op); border-radius: 999px; padding: 4px 10px; display:flex; align-items:center; gap:5px; }
+
+  .screen{
+    position:relative;
+    background: linear-gradient(160deg,#2b2140,#453465);
+    border-radius: 18px;
+    padding: 16px 14px;
+    min-height: 76px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:flex-end;
+    gap:4px;
+    box-shadow: inset 0 3px 10px rgba(0,0,0,0.35);
+    margin-bottom: 14px;
+    z-index: 3;
+  }
+  .display{ color:#fff; font-size: clamp(20px, 7vw, 28px); font-weight:700; letter-spacing:1px; min-height:1.2em; word-break: break-all; text-align:right; width:100%; }
+  .hint{ color:#c9b8ff; font-size:11px; min-height: 14px; text-align:right; width:100%; }
+
+  .keypad{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 9px; position:relative; z-index: 3; }
+
+  .cell{ position:relative; }
+  .cell.wide{ grid-column: span 2; }
+
+  .key-under{
+    position:absolute;
+    inset:0;
+    border-radius: 16px;
+    background: #efe6ff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    font-size: clamp(9px, 2.6vw, 11px);
+    font-weight:800;
+    line-height:1.15;
+    color: var(--accent-dark);
+    padding: 4px;
+    overflow:hidden;
+    z-index:1;
+  }
+
+  button.key{
+    position:relative;
+    z-index:2;
+    width:100%;
+    border:none;
+    border-radius: 16px;
+    background: var(--key);
+    box-shadow: 0 4px 0 #e3d9f5, 0 6px 10px rgba(150,120,200,0.18);
+    font-size: clamp(16px,4.6vw,19px);
+    font-weight:700;
+    color: var(--ink);
+    padding: 14px 0;
+    cursor:grab;
+    touch-action: none;
+  }
+  button.key.op{ background: var(--key-op); color: var(--accent-dark); }
+  button.key.equals{ background: linear-gradient(160deg, var(--accent), var(--accent-dark)); color: #fff; box-shadow: 0 4px 0 #6f49c9, 0 6px 10px rgba(150,120,200,0.35); }
+  button.key.equals.miyav{ background: linear-gradient(160deg, #ff9ec7, #ff6fae); box-shadow: 0 4px 0 #d1467f, 0 6px 10px rgba(255,110,170,0.4); }
+
+  .cat{
+    position:absolute; font-size: 34px; line-height:1; user-select:none; cursor:pointer;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25)); z-index: 30; display:none;
+    transition: transform .12s ease; will-change: left, top;
+  }
+  .cat.caught{ animation: pop .35s ease forwards; }
+  @keyframes pop{ 0%{transform:scale(1);} 50%{transform:scale(1.5) rotate(10deg);} 100%{transform:scale(0);} }
+
+  .invade-layer{ position:absolute; inset:0; pointer-events:none; z-index: 40; overflow:hidden; transition: opacity .6s ease; }
+  .invader{ position:absolute; animation: invaderPop .4s cubic-bezier(.34,1.56,.64,1) forwards; opacity:0; transform: translate(-50%,-50%); }
+  @keyframes invaderPop{
+    0%{ opacity:0; transform: translate(-50%,-50%) scale(0.3) rotate(-8deg); }
+    60%{ opacity:1; transform: translate(-50%,-50%) scale(1.2) rotate(4deg); }
+    100%{ opacity:1; transform: translate(-50%,-50%) scale(1) rotate(0); }
+  }
+
+  .food-pile{ position:absolute; width:70px; height:50px; z-index: 38; opacity:0; pointer-events:none; }
+  .food-pile-inner{ position:relative; width:100%; height:100%; }
+  .grain{ position:absolute; border-radius: 40% 60% 55% 45%; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+
+  .toast{
+    position:absolute; left:50%; top:14px; transform: translateX(-50%);
+    background: rgba(45,33,64,0.92); color:#fff; font-size:12.5px; font-weight:700;
+    padding: 8px 16px; border-radius: 999px; z-index: 50; opacity:0; pointer-events:none;
+    transition: opacity .25s ease, top .25s ease; white-space:nowrap; max-width: 90%;
+    text-overflow: ellipsis; overflow:hidden;
+  }
+  .toast.show{ opacity:1; top:10px; }
+
+  .food-scene{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    flex-direction:column; gap:14px; z-index: 55;
+    background: linear-gradient(160deg, rgba(255,255,255,0.97), rgba(255,214,235,0.97));
+    border-radius: 28px;
+  }
+  .food-scene.show{ display:flex; }
+
+  .bowl-css{ width:96px; height:66px; position:relative; opacity:0; transform:scale(0.4); transition: all .5s cubic-bezier(.34,1.56,.64,1); }
+  .bowl-css.pop{ opacity:1; transform:scale(1); }
+  .bowl-css.eaten{ opacity:0; transform:scale(0.25) translateY(8px); transition: all .6s ease; }
+  .bowl-body{ position:absolute; left:0; right:0; bottom:0; height:38px; background: linear-gradient(180deg, #ffb6d9, #ff85bd); border-radius: 0 0 44px 44px / 0 0 30px 30px; box-shadow: inset 0 -8px 12px rgba(0,0,0,0.15), 0 6px 10px rgba(0,0,0,0.18); }
+  .bowl-rim{ position:absolute; left:-6px; right:-6px; top:16px; height:18px; background: linear-gradient(180deg, #ffffff, #ffe1f1); border-radius: 50%; box-shadow: 0 3px 5px rgba(0,0,0,0.15); }
+
+  .fed-cat{ font-size:58px; opacity:0; transform: translateX(-70px); transition: all .8s ease; }
+  .fed-cat.enter{ opacity:1; transform: translateX(0); }
+  .fed-cat.eating{ animation: nomnom .45s ease infinite; }
+  @keyframes nomnom{ 0%,100%{ transform: translateY(0) scale(1); } 50%{ transform: translateY(3px) scale(1.06); } }
+  .scene-caption{ font-size:12.5px; color: var(--ink-soft); font-weight:700; opacity:0; transition: opacity .5s ease; }
+  .scene-caption.show{ opacity:1; }
+
+  .win-overlay{
+    position:absolute; inset:0; background: linear-gradient(160deg, rgba(255,209,232,0.98), rgba(216,199,255,0.98));
+    display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px;
+    z-index: 60; padding: 24px; border-radius: 28px;
+  }
+  .win-overlay.show{ display:flex; }
+  .win-cat{ font-size:56px; animation: bounce 1s ease infinite; }
+  @keyframes bounce{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-14px);} }
+  .win-title{ font-size:21px; font-weight:800; color:#5c3fa0; }
+  .win-sub{ font-size:13px; color:#6b5f8a; max-width: 260px; }
+  .replay-btn{
+    margin-top:6px; border:none; border-radius: 999px; padding: 10px 22px;
+    background: linear-gradient(160deg, var(--accent), var(--accent-dark)); color:#fff; font-weight:700;
+    font-size:14px; cursor:pointer; box-shadow: 0 4px 0 #6f49c9;
+  }
+  .replay-btn:active{ transform: translateY(3px); box-shadow:none; }
+
+  .footer-note{ font-size:11px; color: var(--ink-soft); opacity:0.8; text-align:center; }
+  .footer-links{ display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; margin-top: 2px; }
+  .footer-links a{
+    font-size: 12px; font-weight:700; color: #6b5f8a; text-decoration:none;
+    background: rgba(255,255,255,0.55); padding: 6px 12px; border-radius: 999px;
+    border: 1px solid rgba(180,140,255,0.35); transition: background .15s ease, transform .1s ease;
+  }
+  .footer-links a:hover{ background: rgba(255,255,255,0.85); }
+  .footer-links a:active{ transform: translateY(1px); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="title"><span class="paw">🐾</span> WhiskerCalc</div>
+  <div class="subtitle">Sıradan bir hesap makinesi... öyle mi?</div>
+
+  <div class="card" id="stage">
+    <div class="topbar">
+      <div class="pill">😼 Skor: <span id="score">0</span></div>
+      <div class="pill">Seviye <span id="level">0</span>/5</div>
+    </div>
+
+    <div class="screen">
+      <div class="display" id="display">0</div>
+      <div class="hint" id="hint">bir tuşa dokun...</div>
+    </div>
+
+    <div class="keypad" id="keypad">
+      <div class="cell"><div class="key-under"></div><button class="key op" data-key="C">C</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key op" data-key="(">(</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key op" data-key=")">)</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key op" data-key="/">÷</button></div>
+
+      <div class="cell"><div class="key-under"></div><button class="key" data-key="7">7</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key" data-key="8">8</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key" data-key="9">9</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key op" data-key="*">×</button></div>
+
+      <div class="cell"><div class="key-under"></div><button class="key" data-key="4">4</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key" data-key="5">5</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key" data-key="6">6</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key op" data-key="-">−</button></div>
+
+      <div class="cell"><div class="key-under"></div><button class="key" data-key="1">1</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key" data-key="2">2</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key" data-key="3">3</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key op" data-key="+">+</button></div>
+
+      <div class="cell wide"><div class="key-under"></div><button class="key" data-key="0">0</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key" data-key=".">.</button></div>
+      <div class="cell"><div class="key-under"></div><button class="key equals" id="equalsBtn" data-key="=">=</button></div>
+    </div>
+
+    <div class="cat" id="cat">🐱</div>
+    <div class="invade-layer" id="invadeLayer"></div>
+    <div class="food-pile" id="invasionFood"><div class="food-pile-inner" id="invasionFoodInner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="food-scene" id="foodScene">
+      <div class="bowl-css" id="bowlCss">
+        <div class="bowl-rim" id="bowlRim"></div>
+        <div class="bowl-body"></div>
+      </div>
+      <div class="fed-cat" id="fedCat">🐱</div>
+      <div class="scene-caption" id="sceneCaption">mama hazırlanıyor...</div>
+    </div>
+
+    <div class="win-overlay" id="winOverlay">
+      <div class="win-cat">😻</div>
+      <div class="win-title">Miyav! Kedi doydu!</div>
+      <div class="win-sub" id="finalScore"></div>
+      <button class="replay-btn" id="replayBtn">Tekrar Oyna</button>
+    </div>
+  </div>
+
+  <div class="footer-note">Kediyi yakalamak için dokun 🐾</div>
+  <div class="footer-links">
+    <a href="https://ayse-create.github.io/WhiskerSearch" target="_blank" rel="noopener">🔍 WhiskerSearch</a>
+    <a href="https://ayse-create.github.io/WhiskerShop" target="_blank" rel="noopener">🛍️ WhiskerShop</a>
+    <a href="https://ayse-create.github.io/WhiskerSearch/Cat-Desktop" target="_blank" rel="noopener">🖥️ Cat-Desktop</a>
+  </div>
+</div>
+
+<script>
+(function(){
+  const stage = document.getElementById('stage');
+  const cat = document.getElementById('cat');
+  const keypad = document.getElementById('keypad');
+  const display = document.getElementById('display');
+  const hint = document.getElementById('hint');
+  const scoreEl = document.getElementById('score');
+  const levelEl = document.getElementById('level');
+  const equalsBtn = document.getElementById('equalsBtn');
+  const invadeLayer = document.getElementById('invadeLayer');
+  const invasionFood = document.getElementById('invasionFood');
+  const invasionFoodInner = document.getElementById('invasionFoodInner');
+  const toast = document.getElementById('toast');
+  const winOverlay = document.getElementById('winOverlay');
+  const finalScoreEl = document.getElementById('finalScore');
+  const replayBtn = document.getElementById('replayBtn');
+  const foodScene = document.getElementById('foodScene');
+  const bowlCss = document.getElementById('bowlCss');
+  const bowlRim = document.getElementById('bowlRim');
+  const fedCatEl = document.getElementById('fedCat');
+  const sceneCaption = document.getElementById('sceneCaption');
+
+  let gameStarted = false;
+  let level = 0;
+  let score = 0;
+  let expr = '';
+  let catchesThisLevel = 0;
+  const catchesNeeded = {1:3, 2:3, 3:4, 4:4};
+  const speeds = {1:1.6, 2:2.8, 3:4.4, 4:6.2};
+
+  let catX=0, catY=0, catVX=0, catVY=0, catSize=34, catAnimId=null, catVisible=false;
+
+  let secretKeyEl = null;
+  let secretUnderEl = null;
+  let secretFormula = null;
+
+  let audioCtx = null;
+  function ensureAudio(){
+    if(!audioCtx){ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function playMeow(happy){
+    ensureAudio();
+    const t0 = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    const startFreq = happy ? 700 : 550;
+    const midFreq = happy ? 1000 : 750;
+    const endFreq = happy ? 420 : 320;
+    osc.frequency.setValueAtTime(startFreq, t0);
+    osc.frequency.linearRampToValueAtTime(midFreq, t0 + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, t0 + 0.32);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.36);
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 900;
+    filter.Q.value = 1.2;
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.38);
+  }
+  function playWoof(){
+    ensureAudio();
+    const t0 = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(160, t0);
+    osc.frequency.exponentialRampToValueAtTime(90, t0 + 0.14);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.28, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.2);
+  }
+  function playChirp(){
+    ensureAudio();
+    const t0 = audioCtx.currentTime;
+    for(let i=0;i<2;i++){
+      const start = t0 + i*0.12;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1800, start);
+      osc.frequency.exponentialRampToValueAtTime(2600, start + 0.05);
+      osc.frequency.exponentialRampToValueAtTime(1500, start + 0.09);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.1);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(start);
+      osc.stop(start + 0.11);
+    }
+  }
+  function playBlub(){
+    ensureAudio();
+    const t0 = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, t0);
+    osc.frequency.exponentialRampToValueAtTime(180, t0 + 0.16);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.2, t0 + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.22);
+  }
+
+  let toastTimer = null;
+  function showToast(msg, duration=1400){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> toast.classList.remove('show'), duration);
+  }
+
+  function updateDisplay(){ display.textContent = expr.length ? expr : '0'; }
+
+  function stageBounds(){
+    const r = stage.getBoundingClientRect();
+    return { w: r.width, h: r.height };
+  }
+  function randomVelocity(speed){
+    const angle = Math.random() * Math.PI * 2;
+    return { vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed };
+  }
+  function spawnCat(speed){
+    const b = stageBounds();
+    catX = Math.random() * (b.w - catSize - 20) + 10;
+    catY = Math.random() * (b.h - catSize - 20) + 10;
+    const v = randomVelocity(speed);
+    catVX = v.vx; catVY = v.vy;
+    cat.style.left = catX + 'px';
+    cat.style.top = catY + 'px';
+    cat.style.display = 'block';
+    cat.classList.remove('caught');
+    catVisible = true;
+    if(catAnimId) cancelAnimationFrame(catAnimId);
+    animateCat();
+  }
+  function animateCat(){
+    if(!catVisible) return;
+    const b = stageBounds();
+    catX += catVX;
+    catY += catVY;
+    if(catX <= 4 || catX >= b.w - catSize - 4){
+      catVX *= -1;
+      catX = Math.max(4, Math.min(catX, b.w - catSize - 4));
+    }
+    if(catY <= 60 || catY >= b.h - catSize - 4){
+      catVY *= -1;
+      catY = Math.max(60, Math.min(catY, b.h - catSize - 4));
+    }
+    const flip = catVX > 0 ? 'scaleX(-1)' : 'scaleX(1)';
+    cat.style.transform = flip;
+    cat.style.left = catX + 'px';
+    cat.style.top = catY + 'px';
+    catAnimId = requestAnimationFrame(animateCat);
+  }
+  function hideCat(){
+    catVisible = false;
+    if(catAnimId) cancelAnimationFrame(catAnimId);
+    cat.style.display = 'none';
+  }
+
+  function onCatCaught(e){
+    if(e) e.stopPropagation();
+    if(!catVisible) return;
+    catVisible = false;
+    if(catAnimId) cancelAnimationFrame(catAnimId);
+    cat.classList.add('caught');
+    playMeow(true);
+    score += 10;
+    scoreEl.textContent = score;
+    catchesThisLevel++;
+    setTimeout(()=>{
+      cat.style.display = 'none';
+      cat.classList.remove('caught');
+      if(catchesThisLevel >= catchesNeeded[level]){
+        levelUp();
+      } else {
+        spawnCat(speeds[level]);
+      }
+    }, 320);
+  }
+  cat.addEventListener('pointerdown', onCatCaught);
+
+  function startGame(){
+    gameStarted = true;
+    level = 1;
+    score = 0;
+    catchesThisLevel = 0;
+    scoreEl.textContent = score;
+    levelEl.textContent = level;
+    hint.textContent = 'Kediyi yakala! 🐾';
+    showToast('Seviye 1 başladı 🐱');
+    spawnCat(speeds[level]);
+  }
+
+  function levelUp(){
+    level++;
+    catchesThisLevel = 0;
+    levelEl.textContent = level;
+    if(level <= 4){
+      showToast('Seviye ' + level + '! Daha hızlı! ⚡');
+      hint.textContent = 'Kediyi yakala! 🐾';
+      spawnCat(speeds[level]);
+    } else {
+      startLevel5();
+    }
+  }
+
+  function randomNumberWithDigits(d){
+    const min = Math.pow(10, d-1);
+    const max = Math.pow(10, d) - 1;
+    return Math.floor(min + Math.random() * (max - min));
+  }
+  function generateBigFormula(){
+    const aDigits = 4 + Math.floor(Math.random()*2);
+    const bDigits = 3 + Math.floor(Math.random()*2);
+    const a = randomNumberWithDigits(aDigits);
+    const b = randomNumberWithDigits(bDigits);
+    return { a, b, text: a + '*' + b, label: 'formül ' + a + '×' + b + ' müş' };
+  }
+
+  function startLevel5(){
+    hideCat();
+    hint.textContent = "Kedi saklandı. Mamayı doğru hazırlayıp Miyav'a bas.";
+    showToast('Son seviye! 🍽️', 2200);
+    expr = '';
+    updateDisplay();
+
+    equalsBtn.textContent = 'Miyav!';
+    equalsBtn.classList.add('miyav');
+
+    const digitButtons = Array.from(keypad.querySelectorAll('button.key'))
+      .filter(b => /^[0-9]$/.test(b.dataset.key));
+    if(secretUnderEl) secretUnderEl.textContent = '';
+    secretKeyEl = digitButtons[Math.floor(Math.random()*digitButtons.length)];
+    secretUnderEl = secretKeyEl.closest('.cell').querySelector('.key-under');
+    secretFormula = generateBigFormula();
+    secretUnderEl.textContent = secretFormula.label;
+  }
+
+  // ---------- Draggable keys ----------
+  function setupDraggable(btn){
+    let startX=0, startY=0, dragging=false, moved=false;
+    const MAXD = 46;
+    btn.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
+
+    btn.addEventListener('pointerdown', function(e){
+      startX = e.clientX; startY = e.clientY;
+      dragging = true; moved = false;
+      btn.style.transition = 'none';
+      btn.style.zIndex = 5;
+      try{ btn.setPointerCapture(e.pointerId); }catch(err){}
+    });
+    btn.addEventListener('pointermove', function(e){
+      if(!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if(Math.sqrt(dx*dx + dy*dy) > 6) moved = true;
+      const cdx = Math.max(-MAXD, Math.min(MAXD, dx));
+      const cdy = Math.max(-MAXD, Math.min(MAXD, dy));
+      btn.style.transform = 'translate(' + cdx + 'px,' + cdy + 'px)';
+    });
+    function endDrag(e){
+      if(!dragging) return;
+      dragging = false;
+      btn.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
+      btn.style.transform = 'translate(0,0)';
+      setTimeout(()=>{ btn.style.zIndex = ''; }, 350);
+      if(!moved){
+        handleKeyPress(btn.dataset.key);
+      }
+    }
+    btn.addEventListener('pointerup', endDrag);
+    btn.addEventListener('pointercancel', endDrag);
+  }
+  Array.from(keypad.querySelectorAll('button.key')).forEach(setupDraggable);
+
+  // ---------- CSS food (grains) ----------
+  function scatterGrains(container, count, palette){
+    container.innerHTML = '';
+    for(let i=0;i<count;i++){
+      const g = document.createElement('div');
+      g.className = 'grain';
+      const size = 6 + Math.random()*6;
+      g.style.width = size + 'px';
+      g.style.height = (size*(0.75+Math.random()*0.5)) + 'px';
+      g.style.left = (8 + Math.random()*72) + '%';
+      g.style.top = (14 + Math.random()*66) + '%';
+      g.style.background = palette[Math.floor(Math.random()*palette.length)];
+      g.style.transform = 'rotate(' + (Math.random()*360) + 'deg)';
+      container.appendChild(g);
+    }
+  }
+
+  function buildCoverageCells(){
+    const b = stageBounds();
+    const yStart = 56;
+    const targetCount = 150;
+    const usableH = Math.max(60, b.h - yStart);
+    const cellSize = Math.max(20, Math.sqrt((b.w * usableH) / targetCount));
+    const cols = Math.ceil(b.w / cellSize);
+    const rows = Math.ceil(usableH / cellSize);
+    const cells = [];
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        cells.push({
+          x: c*cellSize + cellSize/2 + (Math.random()-0.5)*cellSize*0.5,
+          y: yStart + r*cellSize + cellSize/2 + (Math.random()-0.5)*cellSize*0.5
+        });
+      }
+    }
+    return { cells, cellSize };
+  }
+
+  function spawnInvasion(type){
+    const kinds = {
+      dog:  { emoji: '🐶', sound: playWoof, msg: 'Köpek maması hazırlandı! 🐶', palette: ['#c98a3d','#a86a2e','#e0b169','#8a5a26'] },
+      bird: { emoji: '🐦', sound: playChirp, msg: 'Kuş yemi saçıldı! 🐦', palette: ['#e9c46a','#f4a261','#ffd97d','#d9a441'] },
+      fish: { emoji: '🐟', sound: playBlub, msg: 'Balık yemi döküldü! 🐟', palette: ['#ff8a5b','#ff6b6b','#ffb26b','#f4845f'] }
+    };
+    const kind = kinds[type];
+    const b = stageBounds();
+    const originX = 30 + Math.random() * (b.w - 60);
+    const originY = 90 + Math.random() * Math.max(40, b.h - 170);
+
+    invasionFood.style.transition = 'none';
+    invasionFood.style.left = (originX - 35) + 'px';
+    invasionFood.style.top = (originY - 25) + 'px';
+    invasionFood.style.opacity = '0';
+    invasionFood.style.transform = 'scale(0.4)';
+    scatterGrains(invasionFoodInner, 11, kind.palette);
+    kind.sound();
+    showToast(kind.msg, 1800);
+
+    requestAnimationFrame(()=>{
+      invasionFood.style.transition = 'opacity .3s ease, transform .3s cubic-bezier(.34,1.56,.64,1)';
+      invasionFood.style.opacity = '1';
+      invasionFood.style.transform = 'scale(1)';
+    });
+
+    setTimeout(()=>{
+      const { cells, cellSize } = buildCoverageCells();
+      cells.forEach(c => { c.dist = Math.hypot(c.x - originX, c.y - originY); });
+      cells.sort((a,b2) => a.dist - b2.dist);
+      const maxDist = cells.length ? cells[cells.length-1].dist || 1 : 1;
+      const spreadDuration = 1500;
+      invadeLayer.innerHTML = '';
+      invadeLayer.style.opacity = '1';
+      cells.forEach(c => {
+        const delay = (c.dist / maxDist) * spreadDuration + Math.random()*70;
+        setTimeout(()=>{
+          const el = document.createElement('div');
+          el.className = 'invader';
+          el.textContent = kind.emoji;
+          el.style.left = c.x + 'px';
+          el.style.top = c.y + 'px';
+          el.style.fontSize = (cellSize*0.75) + 'px';
+          invadeLayer.appendChild(el);
+        }, delay);
+      });
+      const totalTime = spreadDuration + 900;
+      setTimeout(()=>{
+        invadeLayer.style.opacity = '0';
+        invasionFood.style.opacity = '0';
+        setTimeout(()=>{ invadeLayer.innerHTML=''; invadeLayer.style.opacity='1'; }, 650);
+      }, totalTime);
+    }, 550);
+  }
+
+  function winGame(){
+    foodScene.classList.add('show');
+    bowlCss.className = 'bowl-css';
+    fedCatEl.className = 'fed-cat';
+    fedCatEl.textContent = '🐱';
+    sceneCaption.textContent = 'mama hazırlanıyor...';
+    sceneCaption.classList.remove('show');
+    scatterGrains(bowlRim, 9, ['#f4c563','#e8a94a','#c98a3d','#f7d98a']);
+
+    setTimeout(()=>{ bowlCss.classList.add('pop'); sceneCaption.classList.add('show'); }, 100);
+    setTimeout(()=>{ fedCatEl.classList.add('enter'); playMeow(true); sceneCaption.textContent = 'kedi yaklaşıyor...'; }, 700);
+    setTimeout(()=>{ fedCatEl.textContent = '😻'; sceneCaption.textContent = 'gözleri kalp oldu!'; }, 1550);
+    setTimeout(()=>{ fedCatEl.classList.add('eating'); sceneCaption.textContent = 'nom nom nom...'; }, 1800);
+    setTimeout(()=>{ bowlCss.classList.add('eaten'); }, 2500);
+    setTimeout(()=>{
+      fedCatEl.classList.remove('eating');
+      score += 50;
+      scoreEl.textContent = score;
+      foodScene.classList.remove('show');
+      finalScoreEl.textContent = 'Toplam skorun: ' + score;
+      winOverlay.classList.add('show');
+    }, 3300);
+  }
+
+  function resetGame(){
+    winOverlay.classList.remove('show');
+    foodScene.classList.remove('show');
+    invadeLayer.innerHTML = '';
+    invasionFood.style.opacity = '0';
+    equalsBtn.textContent = '=';
+    equalsBtn.classList.remove('miyav');
+    if(secretUnderEl) secretUnderEl.textContent = '';
+    secretKeyEl = null;
+    secretUnderEl = null;
+    secretFormula = null;
+    expr = '';
+    updateDisplay();
+    gameStarted = false;
+    level = 0;
+    levelEl.textContent = 0;
+    score = 0;
+    scoreEl.textContent = 0;
+    hint.textContent = 'bir tuşa dokun...';
+    hideCat();
+  }
+  replayBtn.addEventListener('click', resetGame);
+
+  function handleKeyPress(key){
+    ensureAudio();
+    if(!gameStarted){ startGame(); return; }
+
+    if(level === 5){
+      if(key === '='){
+        const cleaned = expr.replace(/\s+/g,'');
+        if(secretFormula && cleaned === secretFormula.text){
+          winGame();
+        } else {
+          const types = ['dog','bird','fish'];
+          spawnInvasion(types[Math.floor(Math.random()*types.length)]);
+          hint.textContent = 'Yanlış mama! Doğru formülü bulup tekrar dene.';
+          expr = '';
+          updateDisplay();
+        }
+        return;
+      }
+    } else {
+      if(key === '='){
+        try{
+          const safe = expr.replace(/[^0-9+\-*/().]/g,'');
+          if(safe.length){
+            const result = Function('"use strict";return (' + safe + ')')();
+            expr = String(result);
+          }
+        }catch(err){ expr = 'Hata'; }
+        updateDisplay();
+        return;
+      }
+    }
+
+    if(key === 'C'){ expr = ''; } else { expr += key; }
+    updateDisplay();
+  }
+
+  window.addEventListener('resize', function(){
+    if(catVisible){
+      const b = stageBounds();
+      catX = Math.min(catX, b.w - catSize - 10);
+      catY = Math.min(catY, b.h - catSize - 10);
+    }
+  });
+
+  updateDisplay();
+})();
+</script>
+</body>
+</html>
